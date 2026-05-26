@@ -12,18 +12,14 @@ st.set_page_config(
     layout="centered"
 )
 
-# 2. Função de Limpeza Avançada (Idêntica à do seu Notebook)
+# 2. Função de Limpeza Avançada
 def limpeza_avancada_texto(texto):
     if not isinstance(texto, str):
         return ""
-    # Remove codificações quebradas de bytes/HTML
     texto = re.sub(r'&\w+;', ' ', texto)
     texto = re.sub(r'\\[xX][0-9a-fA-F]{2}', ' ', texto)
-    # Remove URLs/Links residuais
     texto = re.sub(r'https?://\s*\S+|www\.\S+', ' ', texto)
-    # Mantém apenas letras, números e pontuações básicas (limpando emojis e ruídos)
     texto = re.sub(r'[^a-zA-Z0-9áàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ\s\.,!\?\-\(\)\"\']', ' ', texto)
-    # Normaliza múltiplos espaços em branco e quebras de linha
     texto = texto.replace('\n', ' ').replace('\r', ' ')
     texto = re.sub(r'\s+', ' ', texto)
     return texto.strip()
@@ -50,28 +46,30 @@ def calcular_features_texto(texto):
         'question_ratio': question_ratio
     }
 
-# 4. Carregar o modelo treinado de forma eficiente (.pkl)
+# ==========================================================
+# INTERFACE GRÁFICA DA PLATAFORMA (Sempre renderiza na tela)
+# ==========================================================
+st.title("🤖 Detector de Texto Gerado por IA")
+st.write("Cole o seu texto abaixo para analisar a probabilidade de ter sido escrito por um Humano ou por Inteligência Artificial.")
+
+# 4. Carregar o modelo treinado usando joblib
 @st.cache_resource
 def carregar_pipeline():
     return joblib.load('detector_ia_pipeline.pkl')
 
+modelo_carregado = True
 try:
     modelo_pipeline = carregar_pipeline()
 except Exception as e:
-    st.error(f"Erro ao carregar o modelo: {e}. Certifique-se de que o arquivo 'detector_ia_pipeline.pkl' está na mesma pasta deste script.")
-    st.stop()
-
-# ==========================================================
-# INTERFACE GRÁFICA DA PLATAFORMA
-# ==========================================================
-st.title("🤖 Detector de Texto Gerado por IA")
-st.write("Cole o seu texto abaixo para analisar a probabilidade de ter sido escrito por um Humano ou por Inteligência Artificial.")
+    modelo_carregado = False
+    st.error(f"⚠️ Erro interno ao carregar o arquivo do modelo: {e}")
+    st.info("O site carregou a interface, mas as análises estão pausadas até que o arquivo .pkl seja corrigido.")
 
 # Caixa de texto para o usuário colar a redação
 texto_usuario = st.text_area("Seu Texto:", height=250)
 tamanho_atual = len(texto_usuario)
 
-# Validação do intervalo dinamicamente na tela (1500 a 3000 caracteres)
+# Validação do intervalo dinamicamente na tela
 if tamanho_atual > 0:
     if 1500 <= tamanho_atual <= 3000:
         st.success(f"Tamanho do texto: {tamanho_atual} caracteres. Pronto para a análise!")
@@ -80,7 +78,9 @@ if tamanho_atual > 0:
 
 # Botão de Ação
 if st.button("Analisar Texto"):
-    if texto_usuario.strip() == "":
+    if not modelo_carregado:
+        st.error("Não é possível analisar o texto porque o modelo não foi carregado corretamente.")
+    elif texto_usuario.strip() == "":
         st.error("Por favor, digite ou cole algum texto antes de analisar.")
     else:
         with st.spinner("Analisando padrões estilométricos e estrutura de caracteres..."):
@@ -90,7 +90,7 @@ if st.button("Analisar Texto"):
             # 2. Calcula as variáveis numéricas do texto limpo
             dict_features = calcular_features_texto(texto_tratado)
             
-            # 3. Cria o DataFrame com a estrutura exata exigida pelo ColumnTransformer do seu notebook
+            # 3. Cria o DataFrame com a estrutura exata exigida pelo ColumnTransformer
             input_df = pd.DataFrame([dict_features])
             
             # 4. Faz a previsão de probabilidade
@@ -106,7 +106,6 @@ if st.button("Analisar Texto"):
             col1.metric(label="✍️ Probabilidade Humana", value=f"{prob_humano:.2f}%")
             col2.metric(label="🤖 Probabilidade de IA", value=f"{prob_ia:.2f}%")
             
-            # Barra visual de progresso baseada na certeza de ser IA
             st.progress(int(prob_ia))
             
             if prob_ia > 65:
