@@ -1,5 +1,5 @@
 import streamlit as st
-import joblib
+import pickle  # <-- CORRIGIDO: Usando pickle para combinar com o seu notebook
 import pandas as pd
 import numpy as np
 import string
@@ -12,7 +12,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# 2. Função de Limpeza Avançada
+# 2. Função de Limpeza Avançada (Idêntica à do seu Notebook)
 def limpeza_avancada_texto(texto):
     if not isinstance(texto, str):
         return ""
@@ -47,29 +47,30 @@ def calcular_features_texto(texto):
     }
 
 # ==========================================================
-# INTERFACE GRÁFICA DA PLATAFORMA (Sempre renderiza na tela)
+# INTERFACE GRÁFICA DA PLATAFORMA (Sempre desenha na tela)
 # ==========================================================
 st.title("🤖 Detector de Texto Gerado por IA")
 st.write("Cole o seu texto abaixo para analisar a probabilidade de ter sido escrito por um Humano ou por Inteligência Artificial.")
 
-# 4. Carregar o modelo treinado usando joblib
+# 4. Carregar o modelo treinado usando PICKLE
 @st.cache_resource
 def carregar_pipeline():
-    return joblib.load('detector_ia_pipeline.pkl')
+    with open('detector_ia_pipeline.pkl', 'rb') as f:
+        return pickle.load(f)
 
 modelo_carregado = True
 try:
     modelo_pipeline = carregar_pipeline()
 except Exception as e:
     modelo_carregado = False
-    st.error(f"⚠️ Erro interno ao carregar o arquivo do modelo: {e}")
-    st.info("O site carregou a interface, mas as análises estão pausadas até que o arquivo .pkl seja corrigido.")
+    st.error(f"⚠️ Erro ao carregar o arquivo do modelo: {e}")
+    st.info("A interface foi desenhada, mas as análises estão pausadas até que o arquivo .pkl seja lido com sucesso.")
 
 # Caixa de texto para o usuário colar a redação
 texto_usuario = st.text_area("Seu Texto:", height=250)
 tamanho_atual = len(texto_usuario)
 
-# Validação do intervalo dinamicamente na tela
+# Validação do intervalo dinamicamente na tela (1500 a 3000 caracteres)
 if tamanho_atual > 0:
     if 1500 <= tamanho_atual <= 3000:
         st.success(f"Tamanho do texto: {tamanho_atual} caracteres. Pronto para a análise!")
@@ -79,7 +80,7 @@ if tamanho_atual > 0:
 # Botão de Ação
 if st.button("Analisar Texto"):
     if not modelo_carregado:
-        st.error("Não é possível analisar o texto porque o modelo não foi carregado corretamente.")
+        st.error("Não é possível analisar o texto porque o modelo não foi carregado corretamente nos bastidores.")
     elif texto_usuario.strip() == "":
         st.error("Por favor, digite ou cole algum texto antes de analisar.")
     else:
