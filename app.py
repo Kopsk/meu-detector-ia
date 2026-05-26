@@ -1,5 +1,5 @@
 import streamlit as st
-import pickle  # <-- CORRIGIDO: Usando pickle para combinar com o seu notebook
+import joblib
 import pandas as pd
 import numpy as np
 import string
@@ -47,16 +47,15 @@ def calcular_features_texto(texto):
     }
 
 # ==========================================================
-# INTERFACE GRÁFICA DA PLATAFORMA (Sempre desenha na tela)
+# INTERFACE GRÁFICA DA PLATAFORMA
 # ==========================================================
 st.title("🤖 Detector de Texto Gerado por IA")
 st.write("Cole o seu texto abaixo para analisar a probabilidade de ter sido escrito por um Humano ou por Inteligência Artificial.")
 
-# 4. Carregar o modelo treinado usando PICKLE
+# 4. Carrega o modelo usando o joblib (já que seu pkl foi feito com ele)
 @st.cache_resource
 def carregar_pipeline():
-    with open('detector_ia_pipeline.pkl', 'rb') as f:
-        return pickle.load(f)
+    return joblib.load('detector_ia_pipeline.pkl')
 
 modelo_carregado = True
 try:
@@ -64,13 +63,12 @@ try:
 except Exception as e:
     modelo_carregado = False
     st.error(f"⚠️ Erro ao carregar o arquivo do modelo: {e}")
-    st.info("A interface foi desenhada, mas as análises estão pausadas até que o arquivo .pkl seja lido com sucesso.")
 
 # Caixa de texto para o usuário colar a redação
 texto_usuario = st.text_area("Seu Texto:", height=250)
 tamanho_atual = len(texto_usuario)
 
-# Validação do intervalo dinamicamente na tela (1500 a 3000 caracteres)
+# Validação do intervalo dinamicamente na tela
 if tamanho_atual > 0:
     if 1500 <= tamanho_atual <= 3000:
         st.success(f"Tamanho do texto: {tamanho_atual} caracteres. Pronto para a análise!")
@@ -80,19 +78,20 @@ if tamanho_atual > 0:
 # Botão de Ação
 if st.button("Analisar Texto"):
     if not modelo_carregado:
-        st.error("Não é possível analisar o texto porque o modelo não foi carregado corretamente nos bastidores.")
+        st.error("O modelo não foi carregado corretamente.")
     elif texto_usuario.strip() == "":
         st.error("Por favor, digite ou cole algum texto antes de analisar.")
     else:
         with st.spinner("Analisando padrões estilométricos e estrutura de caracteres..."):
-            # 1. Executa a limpeza avançada no texto digitado
+            # 1. Executa a limpeza avançada no texto
             texto_tratado = limpeza_avancada_texto(texto_usuario)
             
-            # 2. Calcula as variáveis numéricas do texto limpo
+            # 2. Calcula as variáveis numéricas
             dict_features = calcular_features_texto(texto_tratado)
             
-            # 3. Cria o DataFrame com a estrutura exata exigida pelo ColumnTransformer
-            input_df = pd.DataFrame([dict_features])
+            # 3. Cria o DataFrame garantindo a ordem EXATA das colunas exigida pelo pipeline
+            ordem_colunas = ['text', 'word_count', 'avg_word_length', 'avg_sentence_length', 'type_token_ratio', 'punct_density', 'question_ratio']
+            input_df = pd.DataFrame([dict_features])[ordem_colunas]
             
             # 4. Faz a previsão de probabilidade
             probabilidades = modelo_pipeline.predict_proba(input_df)[0]
